@@ -4,78 +4,55 @@ from scipy.signal import firwin, lfilter
 import matplotlib.pyplot as plt
 import ffmpeg
 
-input_file = '2024-10-23 09-17-18.mkv'
-output_file = '2024-10-23 09-17-18.wav'
-# Use ffmpeg to extract and convert audio
-ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
+input_file = '1015.mp4'
+output_file = '1015.wav'
 
+#ffmpeg로 mkv를 wav로 변경
+#ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
+y, sr = librosa.load(output_file, sr=None) #time series, fr(샘플링 속도 (rate) ) None=native sampling rate
 
-# Function to design an FIR filter
-def fir_bandpass(lowcut, highcut, sr, numtaps=101):
-    nyquist = 0.5 * sr
-    low = lowcut / nyquist
-    high = highcut / nyquist
+# FIR 통과 주파수 설정 (nyquist를 통해 normalize)
+def fir_bandpass(lowcut, highcut, sr, numtaps):
+    half = 0.5 * sr #normalize 하기 위한 nyquist
+    low = lowcut / half
+    high = highcut / half
     taps = firwin(numtaps, [low, high], pass_zero=False)
     return taps
 
-# Function to apply the FIR filter to a signal
-def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps=101):
+#FIR 필터링
+def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps):
     taps = fir_bandpass(lowcut, highcut, sr, numtaps)
-    filtered_data = lfilter(taps, 1.0, data)
+    filtered_data = lfilter(taps, 1.0, data) #필터에 대역 통과 a=분모
     return filtered_data
 
-# Load an example audio file using librosa
-y, sr = librosa.load(output_file, sr=None)
-
-# Define the frequency range you want to detect (e.g., 500 Hz to 1500 Hz)
 lowcut = 300.0
 highcut = 3000.0
-numtaps = 101
+numtaps = 300
 
-# Apply the FIR bandpass filter to the audio signal
-filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps)
+#최종 필터링된 오디오
+filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps) #numtaps = filter 길이
 
-# Parameters for detecting energy in frames
-hop_length = 512
-frame_length = 1024
-energy_threshold = 0.01  # Adjust based on signal strength
+#총 시간 길이 / 속도 -> 시간
+time = np.linspace(0, len(y) / sr, len(y))
 
-# Calculate the energy in each frame
-energy = librosa.feature.rms(y=filtered_audio, frame_length=frame_length, hop_length=hop_length).flatten()
-time_stamps = librosa.times_like(energy, sr=sr, hop_length=hop_length)
 
-# Detect times where the energy indicates presence of the frequency range
-presence = energy > energy_threshold
-filtered_time_stamps = time_stamps[presence]
-
-# Output the times where the specific frequency is detected
-if filtered_time_stamps.size > 0:
-    print("Times containing the specified frequency range:")
-    for start, end in zip(filtered_time_stamps, filtered_time_stamps[1:]):
-        if end - start > (hop_length / sr):  # Check for continuous segments
-            print(f"{start:.2f} s to {end:.2f} s")
-else:
-    print("No segments contain the specified frequency range.")
-
-# Plot original and filtered audio signals with detected segments
-plt.figure(figsize=(12, 8))
-
-# Original Signal
+#plot 설정
+plt.figure(figsize=(12, 6))
 plt.subplot(2, 1, 1)
-plt.plot(y, label="Original Signal")
-plt.xlabel("Sample Index")
-plt.ylabel("Amplitude")
-plt.title("Original Audio Signal")
+plt.xlabel("t(sec)")
+plt.ylabel("amplitude")
+plt.plot(time, y, label='Original Signal')
+plt.title("Original Signal")
 plt.legend()
+plt.grid(True)
 
-# Filtered Signal with Detected Segments
 plt.subplot(2, 1, 2)
-plt.plot(filtered_audio, label="Filtered Signal", color='orange')
-plt.plot(np.arange(len(presence)) * hop_length, presence * np.max(filtered_audio), 'r', alpha=0.5, label="Detected Segments")
-plt.xlabel("Sample Index")
-plt.ylabel("Amplitude")
-plt.title("Filtered Audio Signal with Detected Segments")
+plt.plot(time, filtered_audio, label='Filtered Signal')
+plt.xlabel("t(sec)")
+plt.ylabel("amplitude")
+plt.title("Filtered Signal")
 plt.legend()
+plt.grid(True)
 
-plt.tight_layout()
+
 plt.show()
