@@ -22,7 +22,7 @@ def fir_bandpass(lowcut, highcut, sr, numtaps):
 #FIR 필터링
 def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps):
     taps = fir_bandpass(lowcut, highcut, sr, numtaps)
-    filtered_data = lfilter(taps, 1.0, data) #필터에 대역 통과 a=분모
+    filtered_data = lfilter(taps, 1.0, data) #필터에 대역 통과 (분자, 분모, input array (coefficient) )
     return filtered_data
 
 lowcut = 300.0
