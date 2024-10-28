@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import ffmpeg
 
 input_file = '1015.mp4'
-output_file = '1015.wav'
+output_file = '2024-10-23 09-17-18.wav'
 
 #ffmpeg로 mkv를 wav로 변경
 #ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
@@ -27,16 +27,16 @@ def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps):
 
 lowcut = 300.0
 highcut = 3000.0
-numtaps = 300
+numtaps = 400
 
 #최종 필터링된 오디오
 filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps) #numtaps = filter 길이
 
-#총 시간 길이 / 속도 -> 시간
+#총 시간 길이 / 속도 -> 시간 (초당 속도 단위로 x축 표현)
 time = np.linspace(0, len(y) / sr, len(y))
 
 
-#plot 설정
+#original
 plt.figure(figsize=(12, 6))
 plt.subplot(2, 1, 1)
 plt.xlabel("t(sec)")
@@ -46,6 +46,7 @@ plt.title("Original Signal")
 plt.legend()
 plt.grid(True)
 
+#filtered
 plt.subplot(2, 1, 2)
 plt.plot(time, filtered_audio, label='Filtered Signal')
 plt.xlabel("t(sec)")
@@ -53,6 +54,5 @@ plt.ylabel("amplitude")
 plt.title("Filtered Signal")
 plt.legend()
 plt.grid(True)
-
 
 plt.show()
