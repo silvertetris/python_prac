@@ -2,93 +2,85 @@ import librosa
 import numpy as np
 from scipy.signal import firwin, lfilter
 import matplotlib.pyplot as plt
+import soundfile as sf
 import ffmpeg
 
-# Define input and output file paths
 input_file = '1015.mp4'
-output_file = '1015.wav'
+output_file = '2024-10-23 09-17-18.wav'
 
-# Convert .mp4 to .wav (uncomment if needed)
-# ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
+#ffmpeg로 mkv를 wav로 변경
+#ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
+y, sr = librosa.load(output_file, sr=None) #time series, fr(샘플링 속도 (rate) ) None=native sampling rate
 
-# Load the audio file
-y, sr = librosa.load(output_file, sr=None)
-
-# Define FIR bandpass filter parameters
-lowcut = 300.0
-highcut = 3000.0
-numtaps = 101
-
-# Function to design an FIR filter
-def fir_bandpass(lowcut, highcut, sr, numtaps=101):
-    nyquist = 0.5 * sr
-    low = lowcut / nyquist
-    high = highcut / nyquist
+# FIR 통과 주파수 설정 (nyquist를 통해 normalize)
+def fir_bandpass(lowcut, highcut, sr, numtaps):
+    half = 0.5 * sr #normalize 하기 위한 nyquist
+    low = lowcut / half
+    high = highcut / half
     taps = firwin(numtaps, [low, high], pass_zero=False)
     return taps
 
-# Apply the FIR bandpass filter to isolate the target frequency range
-def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps=101):
+#FIR 필터링
+def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps):
     taps = fir_bandpass(lowcut, highcut, sr, numtaps)
-    filtered_data = lfilter(taps, 1.0, data)
+    filtered_data = lfilter(taps, 1.0, data) #필터에 대역 통과 (분자, 분모, input array (coefficient) )
     return filtered_data
 
-# Filter the signal with the FIR bandpass filter
-filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps)
+lowcut = 300.0
+highcut = 3000.0
+numtaps = 400
 
-# Zero-out parts of the signal outside the frequency range based on RMS energy threshold
-frame_length = 1024
-hop_length = 512
-energy_threshold = 0.01  # Adjust this threshold as needed
+#최종 필터링된 오디오
+filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps) #numtaps = filter 길이
 
-# Calculate RMS energy of the filtered signal in frames
-energy = librosa.feature.rms(y=filtered_audio, frame_length=frame_length, hop_length=hop_length).flatten()
-
-# Generate time stamps for frames
-time_stamps = librosa.times_like(energy, sr=sr, hop_length=hop_length)
-
-# Initialize a zero array for output where we’ll keep only parts in the frequency range
-output_audio = np.zeros_like(y)
-
-# Fill only the segments that meet the energy threshold in the output array
-for i, e in enumerate(energy):
-    if e > energy_threshold:  # If energy is above threshold, retain the segment
-        start = i * hop_length
-        end = min(start + frame_length, len(y))
-        output_audio[start:end] = filtered_audio[start:end]
-
-# Generate time array for plotting
+#총 시간 길이 / 속도 -> 시간 (초당 속도 단위로 x축 표현)
 time = np.linspace(0, len(y) / sr, len(y))
 
-# Plotting
+
+#original
 plt.figure(figsize=(12, 6))
 
-# Original Signal Plot
-plt.subplot(3, 1, 1)
-plt.plot(time, y, label='Original Signal')
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.title("Original Signal")
-plt.legend()
-plt.grid(True)
 
-# Filtered Signal Plot
-plt.subplot(3, 1, 2)
-plt.plot(time, filtered_audio, label='Filtered Signal', color='orange')
+# Original Signal Spectrogram
+plt.subplot(2, 1, 1)
+D = librosa.amplitude_to_db(np.abs(librosa.stft(y)), ref=np.max)
+librosa.display.specshow(D, sr=sr, x_axis='time', y_axis='log')
+plt.colorbar(format="%+2.0f dB")
+plt.title("Original Signal Spectrogram")
 plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.title("Filtered Signal (Without Zeroing)")
-plt.legend()
-plt.grid(True)
+plt.ylabel("Frequency (Hz)")
 
-# Final Output Signal with Zeroed Segments Outside Frequency Range
-plt.subplot(3, 1, 1)
-plt.plot(time, output_audio, label='Filtered Signal with Zeroed Out Segments', color='green')
+# Filtered Signal Spectrogram
+plt.subplot(2, 1, 2)
+D_filtered = librosa.amplitude_to_db(np.abs(librosa.stft(filtered_audio)), ref=np.max)
+librosa.display.specshow(D_filtered, sr=sr, x_axis='time', y_axis='log')
+plt.colorbar(format="%+2.0f dB")
+plt.title(f"Filtered Signal Spectrogram ({lowcut} Hz - {highcut} Hz)")
 plt.xlabel("Time (s)")
-plt.ylabel("Amplitude")
-plt.title("Filtered Signal (Zeroed Out Segments Outside Frequency Range)")
-plt.legend()
-plt.grid(True)
+plt.ylabel("Frequency (Hz)")
 
 plt.tight_layout()
 plt.show()
+
+
+frame_length = 1024
+hop_length = 512
+energy_threshold = 0.01  # Adjust threshold based on signal strength
+
+# Calculate RMS energy for each frame of the filtered signal
+energy = librosa.feature.rms(y=filtered_audio, frame_length=frame_length, hop_length=hop_length).flatten()
+
+# Initialize an output array with zeros
+output_audio = np.zeros_like(y)
+
+# Keep only the segments where energy is above the threshold
+for i, e in enumerate(energy):
+    if e > energy_threshold:  # If energy exceeds threshold, retain the segment
+        start = i * hop_length
+        end = min(start + frame_length, len(y))
+        output_audio[start:end] = filtered_audio[start:end]  # Copy only valid segments
+
+# Save the final filtered output as a new .wav file
+output_file = 'filtered_output.wav'
+sf.write(output_file, output_audio, sr)
+print(f"Filtered audio saved to {output_file}")
