@@ -2,9 +2,10 @@ import librosa
 import numpy as np
 from scipy.signal import firwin, lfilter
 import matplotlib.pyplot as plt
+import soundfile as sf
 import ffmpeg
 
-input_file = '1015.mp4'
+#input_file = '1015.mp4'
 output_file = '2024-10-23 09-17-18.wav'
 
 #ffmpeg로 mkv를 wav로 변경
@@ -56,3 +57,6 @@ plt.legend()
 plt.grid(True)
 
 plt.show()
+
+output_file = 'filtered_output.wav'
+sf.write(output_file, filtered_audio, sr)
