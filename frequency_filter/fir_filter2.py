@@ -6,7 +6,7 @@ import soundfile as sf
 import ffmpeg
 
 input_file = '1015.mp4'
-output_file = '2024-10-23 09-17-18.wav'
+output_file = '1015.wav'
 
 #ffmpeg로 mkv를 wav로 변경
 #ffmpeg.input(input_file).output(output_file, format='wav', acodec='pcm_s16le', ar=44100, ac=2).run()
@@ -26,9 +26,9 @@ def fir_bandpass_filter(data, lowcut, highcut, sr, numtaps):
     filtered_data = lfilter(taps, 1.0, data) #필터에 대역 통과 (분자, 분모, input array (coefficient) )
     return filtered_data
 
-lowcut = 300.0
-highcut = 3000.0
-numtaps = 400
+lowcut = 300.0 #최저
+highcut = 3000.0 #최고
+numtaps = 400 #필터 길이
 
 #최종 필터링된 오디오
 filtered_audio = fir_bandpass_filter(y, lowcut, highcut, sr, numtaps=numtaps) #numtaps = filter 길이
@@ -63,24 +63,6 @@ plt.tight_layout()
 plt.show()
 
 
-frame_length = 1024
-hop_length = 512
-energy_threshold = 0.01  # Adjust threshold based on signal strength
-
-# Calculate RMS energy for each frame of the filtered signal
-energy = librosa.feature.rms(y=filtered_audio, frame_length=frame_length, hop_length=hop_length).flatten()
-
-# Initialize an output array with zeros
-output_audio = np.zeros_like(y)
-
-# Keep only the segments where energy is above the threshold
-for i, e in enumerate(energy):
-    if e > energy_threshold:  # If energy exceeds threshold, retain the segment
-        start = i * hop_length
-        end = min(start + frame_length, len(y))
-        output_audio[start:end] = filtered_audio[start:end]  # Copy only valid segments
-
-# Save the final filtered output as a new .wav file
-output_file = 'filtered_output.wav'
-sf.write(output_file, output_audio, sr)
+output_file = 'filtered_output2.wav'
+sf.write(output_file, filtered_audio, sr)
 print(f"Filtered audio saved to {output_file}")
