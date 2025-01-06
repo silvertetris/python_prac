@@ -19,6 +19,7 @@ token_ids= tokenizer.convert_tokens_to_ids(tokens)
 labels = []
 subsequence_length = 15  # Length of subsequence to check for repetition
 
+#여기 for문을 다시 짜야함 (2중 for문으로)
 for i in range(len(token_ids)):
     if i >= subsequence_length and token_ids[i-subsequence_length:i] == token_ids[i:i+subsequence_length]:
         labels.append(1)  # Subsequence repetition detected
