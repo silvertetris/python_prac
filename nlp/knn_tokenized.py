@@ -14,32 +14,43 @@ tokens = tokenizer.tokenize(all_text)
 token_ids = tokenizer.convert_tokens_to_ids(tokens)
 print(token_ids)
 
+
 def knn_repeating_subsequences(lst, k, n_neighbors=2, distance_threshold=5.0):
-    subsequences = [lst[i:i + k] for i in range(len(lst) - k + 1)] #기준 subsequence 길이 만큼 iterate
+    subsequences = [lst[i:i + k] for i in range(len(lst) - k + 1)]  # 기준 subsequence 길이 만큼 iterate (index 정하기)
     subsequences_array = np.array(subsequences)
 
-    knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean') #apply KNN
+    # list, set => 중복 없앰, 단일 토큰 어떤게 반복되는지 보기 위함
+    unique_tokens = list(set(lst))
+
+    knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')  # apply KNN
     knn.fit(subsequences_array)
 
     distances, indices = knn.kneighbors(subsequences_array)
-
     repeating_patterns = []
 
-    for idx, (dist, neighbor_indices) in enumerate(zip(distances, indices)): #임계값, 거리에 따라 repeating_patterns에 append
-        pattern = tuple(subsequences[idx])
+    for idx, (dist, neighbor_indices) in enumerate(zip(distances, indices)):  # 임계값, 거리에 따라 repeating_patterns에 append
+        pattern = tuple(subsequences[idx])  # 0~subsequence_max_length
         for j, i in enumerate(neighbor_indices):
             if i != idx and dist[j] <= distance_threshold:
                 if pattern not in repeating_patterns:
                     repeating_patterns.append(pattern)
 
-    return repeating_patterns
+    token_counts = {token: lst.count(token) for token in unique_tokens}
+    repeating_tokens = [token for token, count in token_counts.items() if count > 1]  # 반복된 토큰만 선택
+
+    return repeating_patterns, repeating_tokens
 
 
-k = 10  # length of subsequence
-distance_threshold = 5  # threshold
-repeating_patterns = knn_repeating_subsequences(token_ids, k, n_neighbors=2, distance_threshold=distance_threshold)
+k = 5  # length of subsequence
+distance_threshold = 2  # threshold
+repeating_patterns, repeating_tokens = knn_repeating_subsequences(token_ids, k, n_neighbors=3, distance_threshold=distance_threshold)
 
-# 결과 출력
+# 1. 인접한 pattern
+# 2. pattern decoded
 for pattern in repeating_patterns:
     print(f"패턴 (토큰 ID): {pattern}")
     print(f"패턴 (디코딩): {tokenizer.decode(pattern)}")
+
+for token in repeating_tokens:
+    print(f"반복 토큰: {token}")
+    print(f"디코딩: {tokenizer.decode(token)}")
